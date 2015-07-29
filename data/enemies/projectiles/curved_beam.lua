@@ -22,12 +22,12 @@ function enemy:on_restarted()
   sol.timer.start(enemy, time_between_particles, function()
     -- Number of remaining particles.
     if particles_per_beam > 0 then 
-	  if particles > 0 then particles = particles - 1 
-	  else enemy:stop_firing(); return false end	  
+	  if particles <= 0 then enemy:stop_firing(); return false end	  
 	end
     -- Actualize target position. Create beam particle if the hero is close.
     local tx, ty, _ = enemy:get_map():get_hero():get_position()
 	if enemy:get_distance(tx, ty) < max_distance then
+	  if particles_per_beam > 0 then particles = particles - 1 end
       local e = enemy:create_enemy(properties)
 	  -- Create movement. Destroy enemy when the movement ends.
       local m = sol.movement.create("target")
