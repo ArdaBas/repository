@@ -9,7 +9,7 @@ Scripts under GNU GPL v3:
 -------------------------
 **.lua
 
-Data files under CC BY-SA 3.0:
+Data files under CC BY-SA 4.0:
 ------------------------------        
 musics/*
 sounds/*
