@@ -1,7 +1,7 @@
-- Lua scripts are licensed under the terms of the GNU General Public License
-in version 3.
+- Lua scripts are licensed under the terms of the GNU General Public License in version 3.
+http://www.gnu.org/licenses/gpl-3.0.html
 
-- All data files we created are licensed under
+- All data files we created (which includes all the images, sounds and music) are licensed under
 Attribution-ShareAlike 4.0 International (CC BY-SA 4.0).
 http://creativecommons.org/licenses/by-sa/4.0/
 
