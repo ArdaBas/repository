@@ -15,7 +15,7 @@ function entity:on_created()
   self:set_origin(16, 16)
   self:set_can_traverse("jumper", true)
   self:set_can_traverse_ground("hole", true)
-  --self:set_can_traverse_ground("deep_water", true)
+  self:set_can_traverse_ground("deep_water", true)
   self:set_can_traverse_ground("traversable", true)
   self:set_can_traverse_ground("shallow_water", true)
   self:set_can_traverse_ground("wall", false)
@@ -70,7 +70,8 @@ function entity:on_position_changed()
 end
 
 function entity:is_on_platform(other_entity)
-  --Returns true if other_entity is on the platform. 
+  --Returns true if other_entity is on the platform.
+  if other_entity.is_portable and other_entity.state ~= "on_ground" then return false end
   local ox, oy, ol = other_entity:get_position()
   local ex, ey, el = self:get_position()
   if ol ~= el then return false end

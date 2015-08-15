@@ -9,12 +9,13 @@ local game_manager = {}
 
 -- Sets initial values for a new savegame of this quest.
 local function initialize_new_savegame(game)
-  game:set_starting_location("root_prairie/house_old_men/house")--"levels/left") --("root_prairie/house_old_men/house") 
+  game:set_starting_location("cutscenes/intro") --("root_prairie/house_old_men/house") --"levels/left") --("root_prairie/house_old_men/house") 
   -- STARTING LOCATION: "levels/" + "left", "level0", "test_level", "house_begining_outside", "cottage", "root_prairie/house_old_men/house",...
   game:set_max_money(99)
   game:set_max_life(12)
   game:set_life(game:get_max_life())
   game:get_item("rupee_bag"):set_variant(1)
+  game:set_ability("swim",1)
 end
 
 -- Creates a game ready to be played.
@@ -45,18 +46,18 @@ function game_manager:create(file)
   function game:on_started()
     -- Prepare the dialog box menu and the HUD.
     game:initialize_dialog_box()
-	hud = hud_manager:create(game)
-	pause_menu = pause_manager:create(game, exists)
-	hero_manager = hero_manager_builder:create(game, exists)
+	  hud = hud_manager:create(game)
+	  pause_menu = pause_manager:create(game, exists)
+	  hero_manager = hero_manager_builder:create(game, exists)
   end
 
   -- Function called when the game stops.  
   function game:on_finished()
     -- Clean the dialog box and the HUD.
     game:quit_dialog_box()
-	hud:quit()
-	hero_manager:quit()
-	--hud = nil; pause_menu = nil; hero_manager = nil; game.save_between_maps = nil
+	  hud:quit()
+	  hero_manager:quit()
+	  --hud = nil; pause_menu = nil; hero_manager = nil; game.save_between_maps = nil
   end
   
 
@@ -126,31 +127,43 @@ function game_manager:create(file)
   function game:on_command_pressed(command)
     -- Deal with action command.
     if command == "action" and game:get_command_effect("action") == nil then
-	  local action_effect = game:get_custom_command_effect("action")
-	  -- If the custom command action "custom_lift" is enabled, start it. 
-	  if action_effect == "custom_lift" and game:get_hero():get_animation() ~= "lifting" then
-	    game:get_hero().custom_lift:lift(); return true
-	  end
-	  -- Here we deal with the features "switch hero" and the hero dialog menu.
+	    local action_effect = game:get_custom_command_effect("action")
+	    -- Custom effects.
+	    if action_effect == "custom_lift" and game:get_hero():get_animation() ~= "lifting" then
+        -- If the custom command action "custom_lift" is enabled, start it. 
+	      game:get_hero().custom_lift:lift(); return true
+      elseif action_effect == "custom_jump" then
+        -- Do nothing during the jump.
+        return true
+	    end
+	    -- Here we deal with the features "switch hero" and the hero dialog menu.
       if not hero_manager.enabled or hero_manager.dialog_enabled then return end
-	 
-      if action_effect == nil or action_effect== "custom_carry" then
-	    -- Switch hero if there is not a hero to talk with.
-		hero_manager:switch_hero(); return true
-	  elseif action_effect == "hero_talk" then
-	    -- Initialize hero dialog menu.
-	    hero_manager.hero_dialog_menu:start(game, hero_manager, hero_manager.facing_hero); return true
-	  end 
-	end
-	-- Deal with attack command.
-	if command == "attack" then
-	  if game:get_custom_command_effect("attack") == "custom_carry" then
-	    game:get_hero().custom_carry:throw(); return true
+      if action_effect == nil or action_effect == "custom_carry" then
+	      -- Switch hero if there is not a hero to talk with.
+		    hero_manager:switch_hero(); return true
+	    elseif action_effect == "hero_talk" then
+	      -- Initialize hero dialog menu.
+	      hero_manager.hero_dialog_menu:start(game, hero_manager, hero_manager.facing_hero); return true
+	    end 
 	  end
-	end
-  end
- 
+	  -- Deal with attack command.
+	  if command == "attack" then
+      local attack_effect = game:get_custom_command_effect("attack")
+	    if attack_effect == "custom_carry" then
+	      game:get_hero().custom_carry:throw(); return true
+	    elseif attack_effect == "custom_jump" then
+        return true -- Do nothing during the jump.
+      end
+	  end
+    -- Avoid using items during custom_carry state.
+	  if command == "item_1" or command == "item_2" then
+      local custom_action = game:get_custom_command_effect("action")
+      if custom_action == "custom_carry" or custom_action == "custom_jump" then
+        return true
+      end
+    end
   
+  end
  
   -- Functions for pause menus.
   function game:get_custom_pause_menu() return game.custom_pause_menu end 

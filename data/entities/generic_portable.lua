@@ -11,6 +11,7 @@ entity.moved_on_platform = true
 entity.state = "on_ground"
 entity.associated_hero_index = nil
 entity.sound = "item_fall" -- Default id of the bouncing sound.
+entity.is_portable = true -- USE THIS TO SIMPLIFY ALL THE SCRIPTS!!!
 
 function entity:on_created()
   entity:set_drawn_in_y_order(true)
@@ -70,8 +71,10 @@ end
 function entity:throw()
   -- Set variables. (Take animation and direction before freezing the hero.)
   local game = self:get_game(); local hero = game:get_hero(); local sprite = self:get_sprite()
+  local map = self:get_map()
   local animation = hero:get_animation(); local direction = hero:get_direction()
-  hero:freeze(); hero:set_invincible(true); entity:disable_teletransporters()
+  hero:freeze(); hero:set_invincible(true)
+  game.save_between_maps:disable_teletransporters(map)
   self.on_pre_draw = nil -- Delete function to follow hero.
   hero.custom_carry = nil; self.associated_hero_index = nil; self.state = "falling"; self:set_direction(direction)
   -- If the entity can push buttons, disable it until it falls.
@@ -86,7 +89,7 @@ function entity:throw()
   -- Set position on hero position and the sprite above of the entity.
   local hx,hy,hz = hero:get_position(); self:set_position(hx,hy,hz); sprite:set_xy(0,-22)
   -- Create a custom_entity for shadow (this one is drawn below).
-  local shadow = self:get_map():create_custom_entity({direction=0,layer=hz,x=hx,y=hy})
+  local shadow = map:create_custom_entity({direction=0,layer=hz,x=hx,y=hy})
   shadow:create_sprite("entities/shadow"); shadow:bring_to_back()
   -- Set falling animation if any.
   local starting_animation
@@ -125,19 +128,23 @@ function entity:throw()
   end
   -- Give inertia when thrown from moving platforms.
   local function make_inertia()   
-	for other in self:get_map():get_entities("") do
+	for other in map:get_entities("") do
 	  if other.get_inertia then
 	    if other:is_on_platform(hero) then
-          local direction, speed,  is_moving  = other:get_inertia()
+          local direction, speed, is_moving  = other:get_inertia()
 		  if not is_moving then return end
-		  local ddx, ddy = math.cos(direction*math.pi/2), -math.sin(direction*math.pi/2); local sx, sy, sz
+		  local ddx, ddy = math.cos(direction*math.pi/2), -math.sin(direction*math.pi/2)
+		  local sx, sy, sz
 		  sol.timer.start(entity, math.floor(1000/speed), function()
-		   if not shadow:test_obstacles(ddx, ddy, z) then
-		     sx, sy, sz = shadow:get_position()
-		     shadow:set_position(sx + ddx, sy + ddy, sz) 
-			 x = x+ddx; y = y+ddy
-		  else return false end
-		  return true
+		    if entity.state ~= "falling" then return false end
+		    sx, sy, sz = shadow:get_position()
+		    if not shadow:test_obstacles(ddx, ddy, sz) then
+		      shadow:set_position(sx + ddx, sy + ddy, sz)
+			  local x,y,z = entity:get_position()
+			  x = x+ddx; y = y+ddy
+			  entity:set_position(x,y,z)
+		    else return false end
+		    return true
 		  end)
 		end
 	  end
@@ -147,22 +154,25 @@ function entity:throw()
   -- Function called when the entity has fallen.
   local function finish_bounce()
   
-    shadow:remove(); sprite:set_xy(0,0);  self.state = "on_ground"
+  shadow:remove() 
+	sprite:set_xy(0,0);  self.state = "on_ground"
 	entity:clear_collision_tests(); entity:check_hero_to_lift() -- Start checking the hero again.
 	entity.can_save_state = true; entity.moved_on_platform = true
 	if starting_animation then sprite:set_animation(starting_animation) end -- Restore the initial animation, if necessary.
 	if entity.on_custom_position_changed then  entity:on_custom_position_changed() end -- Notify the entity (to move secondary sprites, etc).
-	entity:enable_teletransporters()
+	game.save_between_maps:enable_teletransporters(map)
 	if can_push_buttons then self.can_push_buttons = true end -- Allow to push buttons again, if necessary.
   end
   -- Collision test to let other npc_hero catch the entity in the air.
   entity:add_collision_test("overlapping", function(self, other_entity) 
     if other_entity.is_npc_hero and other_entity.custom_carry == nil and entity:get_distance(other_entity) < 8 then
 	  entity:clear_collision_tests(); sol.timer.stop_all(entity); 
-	  shadow:remove(); hero:set_invincible(false); hero:unfreeze()
+	  shadow:remove() 
+	  hero:set_invincible(false); hero:unfreeze()
 	  entity.associated_hero_index = other_entity:get_index(); other_entity.custom_carry = entity; entity:set_carried(other_entity)
 	  if starting_animation then sprite:set_animation(starting_animation) end -- Restore the initial animation, if necessary.
-	  entity:enable_teletransporters();  self.state = "carried"
+	  game.save_between_maps:enable_teletransporters(map)
+    self.state = "carried"
 	  if can_push_buttons then self.can_push_buttons = true end -- Allow to push buttons again, if necessary.
 	end
   end)
@@ -224,18 +234,21 @@ function entity:set_saved_info(properties)
   entity.savegame_variable = properties.savegame_variable 
 end
 
+--[[
+
 -- Disable all active teletransporters in the map. This is called when this entity begins falling, to avoid changing map, 
 -- which would not save position of the entity (and therefore it would disappear). 
 function entity:disable_teletransporters()
   local map = self:get_map()
   if map.falling_entities_number == nil then 
     map.falling_entities_number = 1; self.teletransporters = {}
-	for other in map:get_entities("") do
-	  if other:get_type() == "teletransporter" and other:is_enabled() then
-	    other:set_enabled(false); table.insert(self.teletransporters, other) 
+	  for other in map:get_entities("") do
+	    if other:get_type() == "teletransporter" and other:is_enabled() then
+	      other:set_enabled(false); table.insert(self.teletransporters, other) 
+	    end
 	  end
-	end
-  else map.falling_entities_number = map.falling_entities_number +1 end
+  else map.falling_entities_number = map.falling_entities_number +1
+  end
 end
 -- Enable teletransporters in the map. This only affect the ones that were disabled when this entity started to fall.
 -- If there are more entities falling, the teletransporters are not activated.
@@ -248,4 +261,5 @@ function entity:enable_teletransporters()
   end
 end
 
+--]]
 

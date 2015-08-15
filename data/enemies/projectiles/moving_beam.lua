@@ -46,15 +46,15 @@ function enemy:on_restarted()
       local angle = enemy:get_angle(enemy.target.x, enemy.target.y)
       for k, v in pairs(particles) do
         local d = v.distance + 1
-	local dt = enemy:get_distance(enemy.target.x, enemy.target.y)
-	if d > max_distance or d >= dt then
-	  particles[k] = nil; v:explode()
-	else 
-	  v.distance = d
-	  v:set_position(x + d*math.cos(angle), y - d*math.sin(angle), z)
-	end
+		local dt = enemy:get_distance(enemy.target.x, enemy.target.y)
+	    if d > max_distance or d >= dt then
+		  particles[k] = nil; v:explode()
+	    else 
+	      v.distance = d
+	      v:set_position(x + d*math.cos(angle), y - d*math.sin(angle), z)
+	    end
       end
-      return true
+	  return true
     end)
   end
   
@@ -70,20 +70,20 @@ function enemy:on_restarted()
   -- Check if hero is close to shoot.
   sol.timer.start(enemy, 50, function()
     local hx, hy, _ = enemy:get_map():get_hero():get_position()
-    if enemy:get_distance(hx, hy) < max_distance then
-      -- Create target position.
-      local tx = (x+hx)/2; ty = (y+hy)/2 -- Middle point between hero and enemy.
-      if not enemy.target then enemy.target = {x = tx, y = ty} end
-      -- Move the target position towards hero.
+	if enemy:get_distance(hx, hy) < max_distance then
+	  -- Create target position.
+	  local tx = (x+hx)/2; ty = (y+hy)/2 -- Middle point between hero and enemy.
+	  if not enemy.target then enemy.target = {x = tx, y = ty} end
+	  -- Move the target position towards hero.
       local m = sol.movement.create("target")
-      m:set_ignore_obstacles()
-      local hero = enemy:get_map():get_hero()
+	  m:set_ignore_obstacles()
+	  local hero = enemy:get_map():get_hero()
       m:set_target(hero); m:set_speed(aim_speed); m:start(enemy.target)
-      -- Start shooting towards target position. Start moving particles.
-      shoot(); move_particles()
-      return false -- Stop timer.
-    end
-    return true
+	  -- Start shooting towards target position. Start moving particles.
+	  shoot(); move_particles()
+	  return false -- Stop timer.
+	end
+	return true
   end)
-  
+
 end
