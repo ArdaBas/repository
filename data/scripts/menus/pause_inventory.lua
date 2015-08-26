@@ -39,7 +39,7 @@ function inventory_submenu:on_started()
   
   -- Initialize secondary menu surfaces, hero sprites and colors.
   self.switch_character_dialog_surface = sol.surface.create("menus/switch_character_dialog.png")
-   self.sprite_hero = {}; for i=1,3 do self.sprite_hero[i] = sol.sprite.create(self.game:get_hero_manager().hero_tunic_sprites[i]) end
+   self.sprite_hero = {}; for i=1,3 do self.sprite_hero[i] = sol.sprite.create(self.game.hero_manager.hero_tunic_sprites[i]) end
   for k=1,3 do self.sprite_hero[k]:set_direction(3); self.sprite_hero[k]:set_animation("stopped") end
   self.hero_color = {"green", "pink", "blue", "gray"}
   self.hero_color_rgb = {{8, 100, 8}, {100, 8, 8}, {8, 8, 100}}
@@ -729,7 +729,7 @@ end
 
 -- Returns index associated to the current hero.
 function inventory_submenu:get_hero_index()
-  return self.game:get_hero_manager().current_hero_index  
+  return self.game.hero_manager.current_hero_index  
 end 
 
 -- Returns the position of an empty slot in the left or right inventory item, or nil if there is not an empty slot.

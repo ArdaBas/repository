@@ -179,6 +179,12 @@ local function repeat_show_character()
     else
       dialog_box.end_lines_sprite:set_animation("last")
       game:set_custom_command_effect("action", "return")
+      -- Stop talking animation, if needed.
+      if dialog_box.animation_sprite then 
+        if dialog_box.animation_sprite:has_animation("stopped") then
+          dialog_box.animation_sprite:set_animation("stopped")
+        end 
+      end
     end
     game:set_custom_command_effect("attack", nil)
   end
@@ -225,8 +231,7 @@ function dialog_box:on_started()
 end
 
 -- The dialog box is being closed.
-function dialog_box:on_finished()
-  
+function dialog_box:on_finished()  
   -- Remove overriden command effects.
   game:set_custom_command_effect("action", nil)
   game:set_custom_command_effect("attack", nil)
@@ -592,7 +597,7 @@ function dialog_box:on_draw(dst_surface)
   else
     text_x = x + 48 + 16
   end
-  local text_y = y - 1
+  local text_y = y - 4
   for i = 1, nb_visible_lines do
     text_y = text_y + 13
     if self.selected_answer ~= nil
@@ -613,6 +618,8 @@ function dialog_box:on_draw(dst_surface)
         self.dialog_surface,
         self.icon_dst_position.x, self.icon_dst_position.y)
     self.question_dst_position.x = x + 50
+  elseif self.animation_sprite ~= nil then
+    self.question_dst_position.x = x + 64
   else
     self.question_dst_position.x = x + 18
   end

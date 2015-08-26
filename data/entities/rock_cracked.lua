@@ -1,5 +1,7 @@
 local entity = ...
 
+entity.can_save_state = true
+
 function entity:on_created()
   self:set_traversable_by(false)
   self:set_size(16, 16); self:set_origin(8, 13)

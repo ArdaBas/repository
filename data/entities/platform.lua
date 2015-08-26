@@ -55,17 +55,32 @@ end
 
 function entity:on_position_changed()
   -- Move the movable entities located over the platform. 
-  local movable_entities = entity:get_movable_entities(); local x,y,z
-  for _,something  in pairs(movable_entities) do
-    if self:is_on_platform(something) then 
-	  x, y, z = something:get_position()
-      if not something:test_obstacles(dx, dy, z) then something:set_position(x + dx, y + dy, z) end
-	  -- If the entity is carrying something, move it too.
-	  if something.custom_carry then 
-	    x, y, z = something.custom_carry:get_position()  
-	    something.custom_carry:set_position(x + dx, y + dy, z) 
-	  end
-	end
+  local movable_entities = entity:get_movable_entities()
+  local x, y, z = self:get_position()
+  for _, something  in pairs(movable_entities) do
+    if self:is_on_platform(something) then    
+	    local sx, sy, sz = something:get_position()
+      -- If the other entity is on the border of the platform and not walking, move it some pixels towards the center.
+      local needs_centering = false
+      if something:get_type() == "hero" then 
+        if something:get_animation() ~= "walking" then 
+          needs_centering = true 
+        end 
+      elseif something:get_sprite() then
+        if something:get_sprite():get_animation() ~= "walking" then
+          needs_centering = true
+        end
+      end
+      if needs_centering then
+        local bx, by, w, h = entity:get_bounding_box()
+        if sx == bx or sx == bx+1 then sx = bx+2 elseif sx == bx+w or sx == bx+w-1 then sx = bx+w-2 end 
+        if sy == by or sy == by+1 then sy = by+2 elseif sy == by+h or sy == by+h-1 then sy = by+h-2 end
+        something:set_position(sx, sy, sz)
+      end
+      -- Move the entity with the platform.
+      sx, sy, sz = something:get_position()
+      if not something:test_obstacles(dx, dy, sz) then something:set_position(sx + dx, sy + dy, sz) end
+    end
   end
 end
 
@@ -76,7 +91,7 @@ function entity:is_on_platform(other_entity)
   local ex, ey, el = self:get_position()
   if ol ~= el then return false end
   local sx, sy = self:get_size()
-  if math.abs(ox - ex) < sx/2 -1 and math.abs(oy - ey) < sy/2 -1 then return true end
+  if math.abs(ox - ex) <= sx/2 and math.abs(oy - ey) <= sy/2 then return true end
   return false
 end
 

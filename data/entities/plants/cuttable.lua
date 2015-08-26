@@ -5,29 +5,31 @@ local entity = ...
 
 entity.can_save_state = true
 
-local is_not_cut = true
-
 -- Function to create a custom cuttable. Use the following syntax:
 -- prop = {x = x, y = y, layer = layer, name = name, sprite_name = sprite_name}
 function entity:on_created()
-  -- Get the sprite of the entity (that was chosen on the editor). If there is no sprite, the entity is removed.
-  local map = self:get_map()
-  local sprite = self:get_sprite(); if sprite == nil then self:remove() end  
   -- Set properties.
+  local map = self:get_map()
   self:set_traversable_by(false)
   -- Cut the entity when the sword hits it.
   entity:add_collision_test("sprite", function(entity, other_entity, sprite, other_sprite)
-    -- Do nothing if the animation is not "sword", or if the sword is not close enough.
+    -- Do nothing if the animation set is not of the sword, or if the sword is not close enough.
     if other_sprite == nil then return end
-    if other_sprite:get_animation() ~= "sword" then return end
-	if entity:get_distance(other_entity) > 28 then return end
-	-- Cut the entity.
-	entity:clear_collision_tests()
-	local x,y,z = self:get_position()
-	map:create_custom_entity({direction=0,layer=z,x=x,y=y,model="plants/leaves"})
-	entity:drop_pickable()
-	self:remove()
+    local animation_set = other_sprite:get_animation_set()
+    local sword_id = map:get_hero():get_sword_sprite_id()
+    if animation_set ~= sword_id then return end
+    if entity:get_distance(other_entity) > 20 then return end -- Set a max distance to cut.
+    entity:cut() -- Cut the plant.
   end)
+end
+
+function entity:cut()
+	-- Cut the entity.
+	self:clear_collision_tests()
+	local x,y,z = self:get_position()
+	self:get_map():create_custom_entity({direction=0,layer=z,x=x,y=y,model="plants/leaves"})
+	self:drop_pickable()
+	self:remove()
 end
 
 function entity:drop_pickable()

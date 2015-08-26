@@ -1,5 +1,7 @@
 local item = ...
 
+-- Important: while the hero is jumping, the teletransporters are disabled, until the jump ends.
+
 local jump_duration = 300 -- Change this for duration of the jump.
 local is_jumping
 
@@ -18,27 +20,26 @@ local function is_solid_ground(ground_type)
 end
 
 function item:on_using()
-  -- Do nothing if already jumping or carrying something, or if the ground is not "jumpable".
+  -- Do nothing if already jumping or carrying something, or if the ground is not solid.
   local game = self:get_game()
   local map = self:get_map()
   local hero = map:get_hero()
   hero:unfreeze()
-  local state = game:get_custom_command_effect("action")
-  if is_jumping or state == "custom_carry" then return end ----- ADD MORE RESTRICTIONS!!!!
+  if is_jumping then return end ----- ADD MORE RESTRICTIONS!!!!
   local ground = map:get_ground(hero:get_position())
   if not is_solid_ground(ground) then return end
   -- Set jumping to true. Disable teletransporters during jump.
   is_jumping = true
   game.save_between_maps:disable_teletransporters(map)  
   -- The hero can jump. Change custom state, save solid position.
-  game:set_custom_command_effect("action", "custom_jump")
-	game:set_custom_command_effect("attack", "custom_jump")
+  game:set_custom_command_effect("action", nil)
+  game:set_custom_command_effect("attack", nil)
   hero:save_solid_ground()
   -- Unfreeze, play sound, set invincible.
   sol.audio.play_sound("jump")
   hero:set_invincible(true)
   -- Change animation set to display the jump.
-  local hero_manager = self:get_game():get_hero_manager()
+  local hero_manager = self:get_game().hero_manager
   local jump_set = hero_manager.hero_tunic_sprites[hero:get_index()] .. "_jumping"
   local current_set = hero:get_tunic_sprite_id()
   hero:set_tunic_sprite_id(jump_set)
@@ -47,7 +48,8 @@ function item:on_using()
   local tile = self:get_map():create_custom_entity({x=x,y=y,layer=layer,direction=0,width=8,height=8})
   tile:set_origin(4, 4)
   tile:set_modified_ground("traversable")
-  tile:create_sprite("entities/shadow")
+  local sprite = tile:create_sprite("things/ground_effects")
+  sprite:set_animation("shadow_big")
   function tile:on_update() tile:set_position(hero:get_position()) end -- Follow the hero.
   -- Finish the jump.
   sol.timer.start(self, jump_duration, function()
@@ -60,10 +62,9 @@ function item:on_using()
     x,y,layer = hero:get_position()
     ground = map:get_ground(hero:get_position())
     if ground == "empty" and layer > 0 then hero:set_position(x,y,layer-1) end
-    -- Restore custom states. Enable teletransporters after jump.
+    -- Restore custom states.
     game:set_custom_command_effect("action", nil)
 	  game:set_custom_command_effect("attack", nil)
-    game.save_between_maps:enable_teletransporters(map)
     hero:set_invincible(false)
     -- Restore solid ground when possible.
     sol.timer.start(game, 1000, function()

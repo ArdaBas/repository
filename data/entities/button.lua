@@ -59,9 +59,9 @@ function entity:check()
   for _, e in pairs(entity_list) do
     if entity:is_under(e) then 
       if (not entity:is_activated()) then entity:set_activated(true) end
-	  sol.timer.start(entity:get_map(), 50, function() entity:check() end)
-	  return
-	end
+	    sol.timer.start(entity:get_map(), 50, function() entity:check() end)
+	    return
+	  end
   end
   if entity:is_activated() then entity:set_activated(false) end
   sol.timer.start(entity:get_map(), 50, function() entity:check() end)

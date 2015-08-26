@@ -15,6 +15,7 @@ function entity:assign_item(properties)
   entity.item_properties = properties -- Get list of properties of the item.
 end
 
+--[[
 -- Returns boolean. True if the item exists in some of the current maps.
 function entity:item_exists()
   -- Return false if there is no savegame variable. 
@@ -42,6 +43,7 @@ function entity:item_exists()
   -- Return false if the entity is not in the current maps.
   return false
 end
+--]]
 
 -- If the item does not exist in some of the current maps, make it fall.
 function entity:activate()
@@ -64,7 +66,8 @@ function entity:item_fall()
   if not sprite then sprite = item:create_sprite(prop.sprite_name) end
   sprite:set_animation(prop.falling_animation)
   if sprite:get_num_directions() == 4 then item:set_direction(3) end
-  item.state = "falling"; item:disable_teletransporters()
+  item.state = "falling"
+  entity:get_game().save_between_maps:disable_teletransporters(map)
   -- Start falling.
   local m = sol.movement.create("straight")
   m:set_speed(150); m:set_angle(3*math.pi/2)
@@ -77,20 +80,20 @@ function entity:item_fall()
     m:set_max_distance(16); m:set_ignore_obstacles(true)
     m:start(item)
     function m:on_finished() 
-	  m = sol.movement.create("straight")
+	    m = sol.movement.create("straight")
       m:set_speed(60); m:set_angle(3*math.pi/2)
       m:set_max_distance(16); m:set_ignore_obstacles(true)
       m:start(item)
 	  function m:on_finished() 
-        sol.audio.play_sound(item.sound) -- Bounce sound.
-        shadow:remove(); sprite:set_animation(prop.animation)
+      sol.audio.play_sound(item.sound) -- Bounce sound.
+      shadow:remove(); sprite:set_animation(prop.animation)
 	    item:set_position(x,y,layer) -- Set to low layer.
-	    item.state = "on_ground"; item:check_hero_to_lift()
-		item:enable_teletransporters()
+	    item.state = "on_ground"
+		  entity:get_game().save_between_maps:enable_teletransporters(map)
 	  end
 	end
   	
-  end
+end
   
   --- IMPEDIR IRSE SI ESTA CALLENDO!!!!
   

@@ -2,19 +2,32 @@
 local entity = ...
 
 entity.can_push_buttons = true
+entity.moved_on_platform = true
+entity.is_independent = true
+entity.unique_id = "independent_cat"
+entity.can_save_state = true
 
 local target
-local detection_distance = 64
+local detection_distance = 64 -- Used to detect balls of yarn and mice.
 local waiting_distance = 32 -- Used to wait when the ball of yarn is carried.
 local state = "wait" -- Possible values: "wait", "follow", "play".
 
+local game = entity:get_game()
+local map = entity:get_map()
+
 function entity:on_created()
   -- Initialize state. 
-  self:set_size(16, 16); self:set_origin(8, 13); 
   local sprite = self:get_sprite()
-  sprite:set_animation("sit"); self:set_direction(3)
+  sprite:set_animation("sit")
   self:set_drawn_in_y_order(true)
-  self:check(); self:check_hero_lift()
+  self:check()
+  -- Traversing properties.
+  self:set_can_traverse_ground("hole", false)
+  self:set_can_traverse_ground("deep_water", false)
+  self:set_can_traverse_ground("lava", false)
+  -- Notify the hud.
+  self.action_effect = "custom_lift"
+  game:set_interaction_enabled(entity, true)
 end
 
 -- Start looking for balls of yarn and mice. Mice have priority over balls.
@@ -64,18 +77,21 @@ end
 
 -- Restart state. Used after touching a ball or killing a mouse, to start checking again.
 function entity:restart()
-  sol.timer.stop_all(self);  self:stop_movement(); self:clear_collision_tests(); state = "wait"
+  sol.timer.stop_all(self); self:stop_movement()
+  game:clear_collision_tests(self)
+  state = "wait"
   local sprite = self:get_sprite(); sprite:set_animation("sit")
   -- Restart in half second.
   sol.timer.start(self, 500, function() 
-    entity:check(); entity:check_hero_lift()
+    entity:check()
+    game:set_interaction_enabled(entity, true)
   end)
 end
 
 -- Wait.
 function entity:wait()
   state = "wait"
-  self:clear_collision_tests()
+  game:clear_collision_tests(self)
   local sprite =  self:get_sprite()
   self:stop_movement(); sprite:set_animation("sit")
 end
@@ -89,7 +105,7 @@ function entity:follow_target()
   function m:on_position_changed() sprite:set_direction(m:get_direction4()) end
   m:start(self); sprite:set_animation("walking")
   -- Create collision test (the previous ones are destroyed).
-  self:clear_collision_tests()
+  game:clear_collision_tests(self)
   if target:get_type() == "custom_entity" then
     if target:get_model() == "ball_of_yarn" then
       self:add_ball_collision_test()
@@ -110,13 +126,15 @@ function entity:add_ball_collision_test()
 	return dx, dy
   end
   -- Define collision test.
-  self:add_collision_test("overlapping", function(self, other)
+  game:add_collision_test(entity, "collision_ball", "overlapping", function(self, other)
 	if other:get_type() == "custom_entity" and other == target then 
 	  if other:get_model() == "ball_of_yarn" and other.state == "on_ground" then
 	    -- Stop movement and collision tests. Change state.
-	    self:stop_movement(); self:clear_collision_tests(); state = "play"
+	    self:stop_movement()
+      game:clear_collision_tests(self)
+      state = "play"
 	    -- Restore the custom action command (to avoid trying to lift now).
-	    local game = self:get_game(); local hero = game:get_hero()
+	    local hero = game:get_hero()
 	    if game:get_custom_command_effect("action") == "custom_lift" and hero.custom_lift == self then
 	      game:set_custom_command_effect("action", nil); hero.custom_lift = nil
 	    end
@@ -154,7 +172,7 @@ end
 
 function entity:add_mouse_collision_test()
   -- Define collision test.
-  self:add_collision_test("overlapping", function(self, other)
+  game:add_collision_test(entity, "mouse_collision", "overlapping", function(self, other)
 	if other:get_type() == "enemy" and other == target then
 	  if other:get_breed() == "animals/mouse" then 
 	    other:set_life(0) -- Kill the mouse
@@ -167,7 +185,7 @@ end
 -- Return the lists of balls of yarn and mice on the map.
 function entity:get_balls_and_mice()
   local yarn_balls = {}; local mice = {}
-  for other in self:get_map():get_entities("") do 
+  for other in map:get_entities("") do 
 	if other:get_type() == "custom_entity" then
 	  if other:get_model() == "ball_of_yarn" then table.insert(yarn_balls, other) end
 	end
@@ -190,7 +208,7 @@ end
 
 -- Returns boolean if the hero is close and facing this entity.
 function entity:is_facing_hero()
-  local hero =  self:get_map():get_hero()
+  local hero =  game:get_hero()
   local hx, hy, hz = hero:get_position(); local cx, cy, cz = self:get_position()
   local has_good_direction = hero:get_direction4_to(self) == hero:get_direction()
   local is_close = (math.abs(hx - cx) < 10 and math.abs(hy - cy) < 24) 
@@ -198,33 +216,48 @@ function entity:is_facing_hero()
   return has_good_direction and is_close and hz == cz
 end
 
--- Notifies the HUD and game_manager if the hero is close and can try to lift the cat.
-function entity:check_hero_lift()
-  --  The loop will be restarted.
-  sol.timer.start(entity, 50, function() self:check_hero_lift() end)
-  -- If the cat is playing with ball, the HUD is not activated.
-  if state == "play" then return end
-  -- If hero is close and no action active, show in the HUD that the item can be lifted and save a reference to this entity in hero.custom_lift.
-  local game = self:get_game(); local hero = game:get_hero()
-  if self:is_facing_hero() and game:get_custom_command_effect("action") == nil then
-    game:set_custom_command_effect("action", "custom_lift"); hero.custom_lift = self
-  -- If the hero move away from this entity, remove the custom effect "custom lift" if necessary.
-  elseif (not self:is_facing_hero()) and hero.custom_lift == self then
-	game:set_custom_command_effect("action", nil); hero.custom_lift = nil
-  end
-end
-
 -- This method is called when the action button is pressed close to this entity. If the hero tries to lift the cat, it gets scared.
-function entity:lift()
+function entity:on_custom_interaction()
+  game:set_interaction_enabled(entity, false)
+  game:clear_interaction() -- ??
   sol.audio.play_sound("wrong")
-  local game = self:get_game(); local hero = self:get_map():get_hero()
-  hero:freeze(); hero:set_invincible(true)
+  local hero = game:get_hero()
   game:set_custom_command_effect("action", nil)
   sol.timer.stop_all(self); self:stop_movement()
   local sprite = self:get_sprite(); sprite:set_animation("scared")
-  sol.timer.start(self, 1000, function() 
-    hero:unfreeze(); hero:set_invincible(false)
+  sol.timer.start(self, 1000, function()
     self:restart()
   end)
 end
 
+-- Return true if the cat is following a ball of yarn carried by the hero.
+function entity:can_change_map_now()
+  local hero = game:get_hero()
+  if not hero.custom_carry then return false end
+  return (self:get_distance(hero) < detection_distance) and  (hero.custom_carry:get_model() == "ball_of_yarn")
+end
+
+function entity:on_position_changed()
+  -- Look for empty ground to fall to lower layers.
+  local x, y, layer = self:get_position() 
+  local ground = map:get_ground(x, y, layer)
+  if ground == "empty" and layer > 0 then
+    self:set_position(x, y, layer-1)
+    sol.audio.play_sound("hero_lands")
+    self:restart()
+  end
+end
+
+
+--[[
+-- Function to get the information to save between maps.
+function entity:get_saved_info()
+  local properties = {color = self.color}
+  return properties
+end
+
+-- Function to recover the saved information between maps.
+function entity:set_saved_info(properties)
+  self.color = properties.color
+end
+--]]

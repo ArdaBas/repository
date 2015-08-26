@@ -2,14 +2,29 @@
 
 local npc_hero = ...
 
-npc_hero.is_npc_hero = true ----- QUITAR ESTO MAS ADELANTE!!!!
+npc_hero.is_npc_hero = true ----- MAYBE I SHOULD DELETE THIS!!!!
 npc_hero.can_push_buttons = true
 npc_hero.moved_on_platform = true
+npc_hero.custom_carry = nil
+npc_hero.action_effect = "talk"
 
 local index, is_on_team
 
 function npc_hero:on_created()
   self:set_drawn_in_y_order(true)
+  self:set_can_traverse_ground("hole", true)
+  self:set_can_traverse_ground("deep_water", true)
+  self:set_can_traverse_ground("lava", true)
+  -- Interaction properties for the HUD.
+  self:get_game():set_interaction_enabled(npc_hero, true)
+end
+
+-- Activate the hero dialog menu.
+function npc_hero:on_custom_interaction()
+  local game = self:get_game()
+  local hero_manager = game.hero_manager
+  hero_manager.hero_dialog_menu:start(game, hero_manager, self)
+  -- SELECT DIALOG!!!
 end
 
 -- Returns the index 1,2 or 3 of the hero npc.
@@ -33,34 +48,18 @@ function npc_hero:set_on_team(boolean)
   npc_hero:set_traversable_by("hero", boolean)
 end
 
--- Returns boolean: true if hero is facing npc_hero in the same layer and close.
-function npc_hero:is_facing_hero()
-  local map = npc_hero:get_map()
-  local hero = map:get_entity("hero")
-  local hero_x, hero_y, hero_z = hero:get_position()
-  local npc_x, npc_y, npc_z = npc_hero:get_position()
-  local has_good_direction = hero:get_direction4_to(npc_hero) == hero:get_direction()
-  local is_close = (math.abs(hero_x - npc_x) < 10 and math.abs(hero_y - npc_y) < 18) or 
-                   (math.abs(hero_x - npc_x) < 18 and math.abs(hero_y - npc_y) < 10)
-  return has_good_direction and is_close and hero_z == npc_z
-end
-
 function npc_hero:set_carrying(boolean)
   local i = 0; if boolean then i = 1 end
   local direction = self:get_direction()
-  local sprite_id = self:get_game():get_hero_manager().hero_tunic_sprites[((index-1+(3*i))%6)+1]
+  local sprite_id = self:get_game().hero_manager.hero_tunic_sprites[((index-1+(3*i))%6)+1]
   self:remove_sprite(self:get_sprite())  
   local sprite = self:create_sprite(sprite_id); sprite:set_direction(direction)
 end
 
---[[
--- BORRAR ESTO!!!!!!!!!!!!
--- The npc_hero dialog menu is activated. This is done calling the hero dialog menu in the game manager. 
-function npc_hero:start_dialog()
-  npc_hero:set_direction(2)
-  sol.audio.play_sound("secret")
-  npc_hero:get_game():hero_dialog_menu(index)
+-- Notify carried entities to follow npc_hero with on_position_changed() method.
+function npc_hero:on_position_changed()
+  if self.custom_carry then
+    local x, y, layer = self:get_position()
+    self.custom_carry:set_position(x, y+2, layer)
+  end
 end
---]]
-
-

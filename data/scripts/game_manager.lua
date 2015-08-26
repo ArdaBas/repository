@@ -20,7 +20,6 @@ end
 
 -- Creates a game ready to be played.
 function game_manager:create(file)
-
   -- Create the game (but do not start it).
   local exists = sol.game.exists(file)
   local game = sol.game.load(file)
@@ -29,18 +28,19 @@ function game_manager:create(file)
     initialize_new_savegame(game)
   end
   
-
   sol.main.load_file("scripts/dialog_box.lua")(game)
   sol.main.load_file("scripts/game_over.lua")(game)
+  sol.main.load_file("scripts/hero_manager/custom_interactions.lua")(game)
+  sol.main.load_file("scripts/hero_manager/collision_test_manager.lua")(game)
   local hud_manager = require("scripts/hud/hud")
   local hud
   local pause_manager = require("scripts/menus/pause")
   local pause_menu
-
-  local hero_manager_builder = require("scripts/hero manager/hero_manager")
-  local hero_manager
-  game.save_between_maps = require("scripts/hero manager/save_between_maps")
+  
+  local hero_manager_builder = require("scripts/hero_manager/hero_manager")
+  game.save_between_maps = require("scripts/hero_manager/save_between_maps")
   game.active_maps = {}
+  game.independent_entities = {}
   
   -- Function called when the player runs this game.
   function game:on_started()
@@ -48,7 +48,20 @@ function game_manager:create(file)
     game:initialize_dialog_box()
 	  hud = hud_manager:create(game)
 	  pause_menu = pause_manager:create(game, exists)
-	  hero_manager = hero_manager_builder:create(game, exists)
+	  game.hero_manager = hero_manager_builder:create(game, exists)
+    -- Configure some joypad buttons. [Change this for a menu later!]
+    game:set_command_joypad_binding("action", "button 10")
+    game:set_command_joypad_binding("attack", "button 11")
+    game:set_command_joypad_binding("item_1", "button 12")
+    game:set_command_joypad_binding("item_2", "button 13")
+    -- Modify metatable of hero to make carried entities follow him with hero:on_position_changed().
+    local hero_metatable = sol.main.get_metatable("hero")
+    function hero_metatable:on_position_changed()
+      if self.custom_carry then
+        local x, y, layer = self:get_position()
+        self.custom_carry:set_position(x, y+2, layer)
+      end
+    end
   end
 
   -- Function called when the game stops.  
@@ -56,31 +69,26 @@ function game_manager:create(file)
     -- Clean the dialog box and the HUD.
     game:quit_dialog_box()
 	  hud:quit()
-	  hero_manager:quit()
-	  --hud = nil; pause_menu = nil; hero_manager = nil; game.save_between_maps = nil
+	  game.hero_manager:quit()
+	  --hud = nil; pause_menu = nil; game.hero_manager = nil; game.save_between_maps = nil
   end
   
-
   -- Function called when the game is paused.
   function game:on_paused()
-
     -- Start the pause menu. Tell the HUD and the hero manager we are paused. 
-	hud:on_paused()
-	hero_manager:on_paused()
-	if game.custom_pause_menu == nil then sol.menu.start(game, pause_menu)
-	else sol.menu.start(game, game.custom_pause_menu) end
-
+	  hud:on_paused()
+	  game.hero_manager:on_paused()
+	  if game.custom_pause_menu == nil then sol.menu.start(game, pause_menu)
+	  else sol.menu.start(game, game.custom_pause_menu) end
   end   
 
 -- Function called when the game is unpaused.
   function game:on_unpaused() 
-
     -- Stop the pause menu. Tell the HUD and the hero manager we are no longer paused.
-	hud:on_unpaused() 
-	hero_manager:on_unpaused()
-	if game.custom_pause_menu == nil then sol.menu.stop(pause_menu)	
-	else sol.menu.stop(game.custom_pause_menu) end
-
+	  hud:on_unpaused() 
+	  game.hero_manager:on_unpaused()
+	  if game.custom_pause_menu == nil then sol.menu.stop(pause_menu)	
+	  else sol.menu.stop(game.custom_pause_menu) end
   end
   
 
@@ -88,8 +96,8 @@ function game_manager:create(file)
   function game:on_map_changed(map)  
     -- Notify the HUD and hero manager(some HUD elements need to know that).
     hud:on_map_changed(map)
-	hero_manager:on_map_changed(map)
-	game.save_between_maps:load_map(map)
+	  game.hero_manager:on_map_changed(map) -- Create npc_heroes.
+	  game.save_between_maps:load_map(map) -- Create saved and carried entities.
   end
 
   -- After a dialog, the HUD is restarted, which gives a problem with custom_carrying_items. This solves the problem.
@@ -108,43 +116,39 @@ function game_manager:create(file)
   function game:get_custom_command_effect(command)
     return custom_command_effects[command]
   end
-
   -- Overrides the effect of the action or attack command.
   -- Set the effect to nil to restore the built-in effect.
   function game:set_custom_command_effect(command, effect)
     custom_command_effects[command] = effect
   end
-
-
+  
   -- More functions.
   function game:is_hud_enabled() return hud:is_enabled() end
   function game:set_hud_enabled(enable) return hud:set_enabled(enable) end
-  function game:is_hero_manager_enabled() return hero_manager:is_enabled() end
-  function game:get_hero_manager() return hero_manager end
-  function game:set_hero_manager_enabled(enable) return hero_manager:set_enabled(enable) end
+  function game:is_hero_manager_enabled() return game.hero_manager:is_enabled() end
+  function game:set_hero_manager_enabled(enable) return game.hero_manager:set_enabled(enable) end
 
-  
+
   function game:on_command_pressed(command)
+    -- Skip function if dialog box is enabled.
+    if game:is_dialog_enabled() then return false end
     -- Deal with action command.
-    if command == "action" and game:get_command_effect("action") == nil then
-	    local action_effect = game:get_custom_command_effect("action")
-	    -- Custom effects.
-	    if action_effect == "custom_lift" and game:get_hero():get_animation() ~= "lifting" then
-        -- If the custom command action "custom_lift" is enabled, start it. 
-	      game:get_hero().custom_lift:lift(); return true
-      elseif action_effect == "custom_jump" then
-        -- Do nothing during the jump.
-        return true
-	    end
-	    -- Here we deal with the features "switch hero" and the hero dialog menu.
-      if not hero_manager.enabled or hero_manager.dialog_enabled then return end
-      if action_effect == nil or action_effect == "custom_carry" then
-	      -- Switch hero if there is not a hero to talk with.
-		    hero_manager:switch_hero(); return true
-	    elseif action_effect == "hero_talk" then
-	      -- Initialize hero dialog menu.
-	      hero_manager.hero_dialog_menu:start(game, hero_manager, hero_manager.facing_hero); return true
-	    end 
+    if command == "action" then
+      if game:get_command_effect("action") == nil then
+        local action_effect = game:get_custom_command_effect("action")
+        -- Custom action effects.
+        if action_effect and game:get_interaction_entity() then
+         game:get_hero().custom_interaction:on_custom_interaction(); return true
+        end
+        -- Here we deal with the features "switch hero" and the hero dialog menu.
+        if not game.hero_manager.enabled or game.hero_manager.dialog_enabled then return end
+        if action_effect == nil or action_effect == "custom_carry" then
+          -- Switch hero.
+          game.hero_manager:switch_hero(); return true
+        end
+      else
+        return false -- The engine handles the action.
+      end
 	  end
 	  -- Deal with attack command.
 	  if command == "attack" then
@@ -162,8 +166,9 @@ function game_manager:create(file)
         return true
       end
     end
-  
+
   end
+
  
   -- Functions for pause menus.
   function game:get_custom_pause_menu() return game.custom_pause_menu end 

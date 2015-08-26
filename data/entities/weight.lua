@@ -3,8 +3,10 @@
 local entity = ...
 sol.main.load_file("entities/generic_portable")(entity)
 
+entity.is_independent = true
+entity.unique_id = "independent_weight"
 entity.can_push_buttons = true
 
 function entity:on_custom_created()
-  self:set_size(16, 16); self:set_origin(8, 13)
+
 end

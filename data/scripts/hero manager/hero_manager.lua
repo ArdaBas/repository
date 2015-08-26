@@ -23,7 +23,7 @@ local function initialize_new_savegame(game)
     current_hero_index=1,
     npc1_map="root_prairie/000x000", npc1_x=200, npc1_y=200, npc1_layer=0, npc1_direction=3, npc1_is_on_team = true,
     npc2_map="root_prairie/000x000", npc2_x=248, npc2_y=120, npc2_layer=0, npc2_direction=2, npc2_is_on_team = true,
-	npc3_map="root_prairie/000x000", npc3_x=248, npc3_y=150, npc3_layer=0, npc3_direction=2, npc3_is_on_team = true
+	  npc3_map="root_prairie/000x000", npc3_x=248, npc3_y=150, npc3_layer=0, npc3_direction=2, npc3_is_on_team = true
   }  
   for k,val in pairs(variables) do game:set_value(k, val) end
 end 
@@ -35,27 +35,25 @@ function hero_manager_builder:create(game, exists)
   -- Set up the hero manager.
   local hero_manager = {
     enabled = true,
-	changing_hero = false,
-	facing_hero = nil, -- Name of npc_hero that hero is facing. 
-	current_hero_index = game:get_value("current_hero_index"),
-	npc_heroes_properties = {}, -- Initialized a few lines below.
-	npc_heroes_on_map = {}, -- Initialized by on_map_changed().
-	npc_heroes_to_switch = {}, -- Initialized by on_map_changed().
-	check_heroes_enabled = false, -- True if there are npc heroes on the map.
-	switch_heroes_enabled = true,
-	dialog_enabled = false,
-	hero_dialog_menu = require("scripts/hero manager/hero_dialog"),
+    changing_hero = false, 
+    current_hero_index = game:get_value("current_hero_index"),
+    npc_heroes_properties = {}, -- Initialized a few lines below.
+    npc_heroes_on_map = {}, -- Initialized by on_map_changed().
+    npc_heroes_to_switch = {}, -- Initialized by on_map_changed().
+    switch_heroes_enabled = true,
+    dialog_enabled = false,
+    hero_dialog_menu = require("scripts/hero_manager/hero_dialog"),
   }
   -- Initialize npc_heroes_properties on the map from the savegame.
   for i = 1,3 do
-	hero_manager.npc_heroes_properties[i] = {}
+    hero_manager.npc_heroes_properties[i] = {}
     hero_manager.npc_heroes_properties[i].map = game:get_value("npc"..i.."_map")
     hero_manager.npc_heroes_properties[i].index = i
     hero_manager.npc_heroes_properties[i].x = game:get_value("npc"..i.."_x")
-	hero_manager.npc_heroes_properties[i].y = game:get_value("npc"..i.."_y")
+    hero_manager.npc_heroes_properties[i].y = game:get_value("npc"..i.."_y")
     hero_manager.npc_heroes_properties[i].layer = game:get_value("npc"..i.."_layer")
     hero_manager.npc_heroes_properties[i].direction = game:get_value("npc"..i.."_direction")
-	hero_manager.npc_heroes_properties[i].is_on_team = game:get_value("npc"..i.."_is_on_team")
+    hero_manager.npc_heroes_properties[i].is_on_team = game:get_value("npc"..i.."_is_on_team")
   end
   -- Initializes sprite and direction of main hero.
    hero_manager.hero_tunic_sprites = {"main_heroes/edgar", "main_heroes/robyne", "main_heroes/wizard_blue", 
@@ -77,7 +75,7 @@ function hero_manager_builder:create(game, exists)
   function hero_manager:refresh_savegame_variables()
   
     game:set_value("current_hero_index", hero_manager.current_hero_index)
-	game:set_starting_location(hero_manager.npc_heroes_properties[hero_manager.current_hero_index].map)
+	  game:set_starting_location(hero_manager.npc_heroes_properties[hero_manager.current_hero_index].map)
     for i=1,3 do
 	  game:set_value("npc"..i.."_map", hero_manager.npc_heroes_properties[i].map)
 	  game:set_value("npc"..i.."_x", hero_manager.npc_heroes_properties[i].x)
@@ -88,102 +86,59 @@ function hero_manager_builder:create(game, exists)
 	end
   end
   
-
-  
-  -- Check if the hero can talk with another hero. Stop the loop if there is no hero.
-  function hero_manager:check_heroes_on_map()
-     
-	if hero_manager.check_heroes_enabled == false then return end
-    local map = game:get_map()
-    if map ~= nil then
-	  for npc_hero in map:get_entities("npc_hero") do
-	  -- If hero is facing npc_hero in same layer and close, enable "hero_talk" and save name of npc_hero in variable.
-	    if npc_hero:is_facing_hero() then
-		  hero_manager.facing_hero = npc_hero
-		  game:set_custom_command_effect("action", "hero_talk")
-		  sol.timer.start(game, 50, function() hero_manager:check_heroes_on_map() end)
-		  return
-		end
-	  end
-	  -- Otherwise, disable custom action (set it to nil or "custom_carry").
-      hero_manager.facing_hero = nil
-	  if game:get_custom_command_effect("action") == "hero_talk" then 
-	    if game:get_hero().custom_carry ~= nil then game:set_custom_command_effect("action", "custom_carry")
-		else game:set_custom_command_effect("action", nil) end
-	  end
-    end
-	-- Restart the check function.
-    sol.timer.start(game, 150, function() hero_manager:check_heroes_on_map() end)
-  end
-  
-  -- Call this function to notify the hero manager that the current map has changed. Initializes npc heroes.
-  -- Reset some variables and enables/disables hero_manager:check_heroes_on_map() depending on the case.
-  function hero_manager:on_map_changed(map) 
-    	   
-	-- If disabled, do nothing.
-	if not hero_manager.enabled then return end
+  -- Call this function to notify the hero manager that the current map has changed. Initialize npc heroes.
+  function hero_manager:on_map_changed(map)
+	  -- If disabled, do nothing.
+	  if not hero_manager.enabled then return end
     -- Reset some variables.
-    hero_manager.facing_hero = nil
-	if game:get_custom_command_effect("action") == "hero_talk" then game:set_custom_command_effect("action", nil) end
+    game:set_custom_command_effect("action", nil)
     -- Create the npc heroes that are in this map. Initialize the lists npc_heroes_on_map and npc_heroes_to_switch.
-	hero_manager.npc_heroes_on_map = {}; hero_manager.npc_heroes_to_switch = {}
-	for k, properties in pairs(hero_manager.npc_heroes_properties) do
-	  if properties.map == map:get_id() and properties.index ~= hero_manager.current_hero_index then 
-	    hero_manager.npc_heroes_on_map[k] = properties 	
-		hero_manager:create_npc_hero(properties)
-		if properties.is_on_team then hero_manager.npc_heroes_to_switch[k] = properties end
-	  end
-	end
-	-- Activate the check npc heroes function, in case there are npc heroes.
-	if hero_manager:cardinal(hero_manager.npc_heroes_on_map) == 0 then
-	  hero_manager.check_heroes_enabled = false
-	elseif hero_manager.check_heroes_enabled == false then 
-	  hero_manager.check_heroes_enabled = true
-	  hero_manager:check_heroes_on_map()
-	end	
-	-- Actualize npc_heroes coordinates when leaving the map (just in case the npc_hero is moved by some entity).
-	-- The same is done for all the entities on the map, but only in case there is some npc_hero on the map. 
-	--------------
-	
+    hero_manager.npc_heroes_on_map = {}; hero_manager.npc_heroes_to_switch = {}
+    for k, properties in pairs(hero_manager.npc_heroes_properties) do
+      if properties.map == map:get_id() and properties.index ~= hero_manager.current_hero_index then 
+        hero_manager.npc_heroes_on_map[k] = properties 	
+        hero_manager:create_npc_hero(properties)
+        if properties.is_on_team then hero_manager.npc_heroes_to_switch[k] = properties end
+      end
+    end
+    
+    -- Actualize npc_heroes coordinates when leaving the map (just in case the npc_hero is moved by some entity).
+    -- The same is done for all the entities on the map, but only in case there is some npc_hero on the map. 
     function map:on_finished()
-	
-	-- Function called when the player goes to another map. Save the state of the entities in case some npc_hero
-	-- is left on the map; otherwise delete the info. The info is stored temporarily in "game.active_maps".
-	  if hero_manager:cardinal(hero_manager.npc_heroes_to_switch) > 0 then game.save_between_maps:save_map(map)
-	  else game.save_between_maps:forget_map(map)
-	  end
-	-- Finally, we store the position of the npc_heroes (it may have changed even without switching heroes).
-	  for npc in map:get_entities("npc_hero") do
+	    -- Function called when the player goes to another map. Save the state of the entities in case some npc_hero
+	    -- is left on the map; otherwise delete the info. The info is stored temporarily in "game.active_maps".
+      -- Items carried by the current hero are always saved.
+      local some_hero_remains = (hero_manager:cardinal(hero_manager.npc_heroes_to_switch) > 0)
+      game.save_between_maps:save_map(map, some_hero_remains)
+      -- Finally, we store the position of the npc_heroes (it may have changed even without switching heroes).
+      for npc in map:get_entities("npc_hero") do
         local x,y,layer = npc:get_position(); local dir = npc:get_direction(); local index = npc:get_index()
         local prop = hero_manager.npc_heroes_properties[index]
         prop.x = x; prop.y = y; prop.layer = layer; prop.direction = dir
-	  end	
+      end	
     end
   -- End of function on_map_changed.
   end	
 
-  -- Given a list of properties = {index=..., x=..., y=..., layer=..., direction=..., is_on_team=...,
-  -- animation_set=..., animation=...} of some npc_hero,
-  -- a new npc_hero is created on the map and returned by the function.
+  -- Given a list of properties = {index=..., x=..., y=..., layer=..., direction=..., is_on_team=..., animation_set=..., animation=...} 
+  -- of some npc_hero, a new npc_hero is created on the map and returned by the function.
   function hero_manager:create_npc_hero(properties)
-    
     local map = game:get_map()
-	properties.name = "npc_hero_"..properties.index; properties.model = "npc_hero"
+    properties.name = "npc_hero_"..properties.index; properties.model = "npc_hero"
     local npc_hero = map:create_custom_entity(properties)
-	properties.name = nil; properties.model = nil
-	npc_hero:set_index(properties.index)
-	npc_hero:set_sprite(properties.animation_set or hero_manager.hero_tunic_sprites[properties.index])
-	npc_hero:set_direction(properties.direction)
-	npc_hero:get_sprite():set_animation("stopped")
-	npc_hero:set_drawn_in_y_order(true)
-	npc_hero:set_on_team(properties.is_on_team)
-	npc_hero.custom_carry = properties.custom_carry
-	return npc_hero
+    properties.name = nil; properties.model = nil
+    npc_hero:set_index(properties.index)
+    npc_hero:set_sprite(properties.animation_set or hero_manager.hero_tunic_sprites[properties.index])
+    npc_hero:set_direction(properties.direction)
+    npc_hero:get_sprite():set_animation("stopped")
+    npc_hero:set_drawn_in_y_order(true)
+    npc_hero:set_on_team(properties.is_on_team)
+    npc_hero.custom_carry = properties.custom_carry
+    return npc_hero
   end
  
   -- Interchange hero with npc_hero.
   function hero_manager:switch_hero()
-    
     -- Do nothing if switching is disabled, or while changing hero, or if there are no npc heroes on the map that can be switched. 
     if (not hero_manager.switch_heroes_enabled) or hero_manager.changing_hero 
 	  or hero_manager:cardinal(hero_manager.npc_heroes_to_switch) == 0 or game:is_suspended() then return end
@@ -221,15 +176,14 @@ function hero_manager_builder:create(game, exists)
 	hero:set_tunic_sprite_id(npc_properties.animation_set) 
 	hero:set_animation("stopped")
 	hero:set_direction(npc_properties.direction)
+  hero.custom_carry = npc_properties.custom_carry -- Do this before changing hero position (so carried entity cannot move).
 	hero:set_position(npc_properties.x, npc_properties.y, npc_properties.layer)
-	hero.custom_carry = npc_properties.custom_carry
-	if hero.custom_carry ~= nil then 
-	  game:set_custom_command_effect("action", "custom_carry")
+	if hero.custom_carry ~= nil then
 	  game:set_custom_command_effect("attack", "custom_carry") 
 	else 
-	  game:set_custom_command_effect("action",nil) 
 	  game:set_custom_command_effect("attack", nil) 
 	end
+  game:set_custom_command_effect("action", nil)
 	hero_manager.current_hero_index = index_npc
  	-- Remove from the map the old npc_hero.	 
 	map:remove_entities("npc_hero_" .. index_npc)
@@ -244,14 +198,17 @@ function hero_manager_builder:create(game, exists)
 	-- Actualizes savegame variables. Restart movement of hero.
 	hero_manager:refresh_savegame_variables()
 	hero_manager.changing_hero = false
+  -- Restart interaction of the hero.
+  game:clear_interaction()
+  -- Unfreeze.
 	hero:unfreeze()
   end
    
   
   -- Get the npc_hero or hero on the map of the given index.
   function hero_manager:get_hero_entity(index) 
-    if self.current_hero_index == index then return hero 
-	else return game:get_map():get_entity("npc_hero_"..index) end --npc_heroes_on_map[index] end 
+    if self.current_hero_index == index then local hero = game:get_hero(); return hero
+	  else return game:get_map():get_entity("npc_hero_"..index) end 
   end
   -- Returns the next index cyclically: 1,2,3.  
   function hero_manager:next_index(index) return math.max((index+1)%4, 1) end  

@@ -13,7 +13,7 @@ function action_icon_builder:new(game)
     action_icon.icon_region_y = nil
     action_icon.icon_flip_sprite = sol.sprite.create("hud/action_icon_flip")
     action_icon.is_flipping = false
-    action_icon.effect_displayed = game:get_custom_command_effect("action") or game:get_command_effect("action")
+    action_icon.effect_displayed = game:get_command_effect("action") or game:get_custom_command_effect("action")
     action_icon:compute_icon_region_y()
 
     function action_icon.icon_flip_sprite:on_animation_finished()
@@ -52,9 +52,9 @@ function action_icon_builder:new(game)
         ["speak"] = 12,
         ["change"] = 13,
         ["swim"] = 14,
-		    ["hero_talk"] = 12,
+		    ["talk"] = 12,
 		    ["custom_lift"] = 8,
-		    ["custom_carry"] = 9,
+		    ["custom_carry"] = nil,
         ["custom_jump"] = nil,
       }
       if effects_indexes[action_icon.effect_displayed] ~= nil then
@@ -68,7 +68,7 @@ function action_icon_builder:new(game)
     local need_rebuild = false
 
     if not action_icon.flipping then
-      local effect = game:get_custom_command_effect("action") or game:get_command_effect("action")
+      local effect = game:get_command_effect("action") or game:get_custom_command_effect("action")
       if effect ~= action_icon.effect_displayed then
         if action_icon.effect_displayed ~= nil then
           if effect ~= nil then
