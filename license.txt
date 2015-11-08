@@ -5,7 +5,7 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Attribution-ShareAlike 4.0 International (CC BY-SA 4.0).
 http://creativecommons.org/licenses/by-sa/4.0/
 
-All data files have been created by me (Diarandor), using programs like sfxr, Famitracker and Aseprite.
+All data files have been created by me (Diarandor), using programs like sfxr, Famitracker, Audacity and Aseprite.
 
 Scripts under GNU GPL v3:
 -------------------------
