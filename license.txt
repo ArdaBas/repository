@@ -5,8 +5,11 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0).
 http://creativecommons.org/licenses/by-nc-sa/4.0/
 
-All data files have been created by me (nickname Diarandor), using programs like sfxr, Famitracker, Audacity and Aseprite. If you modify and/or distribute them, you must always give credit explicitly refering to me as the only copyright holder. These data files cannot be used for commercial purposes and they must always be distributed with the original license. If you do not respect these license conditions you would be infringing the law and criminal action may be taken, which may lead to unlimited criminal fines.
-
+All data files have been created by me (nickname Diarandor), using programs like sfxr, Famitracker, Audacity
+and Aseprite. If you modify and/or distribute them, you must always give credit explicitly refering to me as
+the only copyright holder. These data files cannot be used for commercial purposes and they must always be
+distributed with the original license. If you do not respect these license conditions you would be infringing
+the law and criminal action may be taken, which may lead to unlimited criminal fines.
 
 Scripts under GNU GPL v3:
 -------------------------
